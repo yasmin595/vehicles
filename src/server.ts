@@ -23,7 +23,7 @@ initDB();
 
 // respond with "hello world" when a GET request is made to the homepage
 app.get('/', (req:Request, res:Response) => {
-  res.send('hello Suborna World');
+  res.send('hello Suborn World');
 });
 app.post('/', (req:Request, res:Response) => {
     console.log(req.body);
