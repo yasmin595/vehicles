@@ -1,53 +1,62 @@
 import { pool } from "../../config/db";
 
-export const createBooking = async (payload: any, user: any) => {
+export const createBooking = async (payload: any, currentUser: any) => {
   const { vehicle_id, rent_start_date, rent_end_date } = payload;
 
-  // get vehicle
-  const vehicleRes = await pool.query(
-    "SELECT * FROM vehicles WHERE id=$1",
+  // 1️⃣ vehicle check
+  const vehicleResult = await pool.query(
+    "SELECT * FROM vehicles WHERE id=$1 AND availability_status='available'",
     [vehicle_id]
   );
 
-  if (!vehicleRes.rows.length) {
-    throw new Error("Vehicle not found");
-  }
-
-  const vehicle = vehicleRes.rows[0];
-
-  if (vehicle.availability_status !== "available") {
+  if (!vehicleResult.rows.length) {
     throw new Error("Vehicle not available");
   }
 
-  // calculate days
+  const vehicle = vehicleResult.rows[0];
+
+  // 2️⃣ calculate days
   const start = new Date(rent_start_date);
   const end = new Date(rent_end_date);
+  const diffDays =
+    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
 
-  const diff = end.getTime() - start.getTime();
-  const days = diff / (1000 * 60 * 60 * 24);
-
-  if (days <= 0) {
-    throw new Error("Invalid rent duration");
+  if (diffDays <= 0) {
+    throw new Error("Invalid rent date range");
   }
 
-  const totalPrice = days * vehicle.daily_rent_price;
+  // 3️⃣ total price
+  const totalPrice = Number(vehicle.daily_rent_price) * diffDays;
 
-  // create booking
-  const bookingRes = await pool.query(
+  // 4️⃣ insert booking
+  const bookingResult = await pool.query(
     `INSERT INTO bookings
      (customer_id, vehicle_id, rent_start_date, rent_end_date, total_price, status)
      VALUES ($1,$2,$3,$4,$5,'active')
      RETURNING *`,
-    [user.id, vehicle_id, rent_start_date, rent_end_date, totalPrice]
+    [
+      currentUser.id,
+      vehicle_id,
+      rent_start_date,
+      rent_end_date,
+      totalPrice,
+    ]
   );
 
-  // update vehicle status
+  // 5️⃣ update vehicle status
   await pool.query(
     "UPDATE vehicles SET availability_status='booked' WHERE id=$1",
     [vehicle_id]
   );
 
-  return bookingRes.rows[0];
+  // 6️⃣ response format
+  return {
+    ...bookingResult.rows[0],
+    vehicle: {
+      vehicle_name: vehicle.vehicle_name,
+      daily_rent_price: vehicle.daily_rent_price,
+    },
+  };
 };
 
 export const getBookings = async (user: any) => {

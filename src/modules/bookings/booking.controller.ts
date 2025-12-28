@@ -2,11 +2,13 @@ import { Request, Response } from "express";
 import * as bookingService from "./booking.service";
 
 export const createBooking = async (req: any, res: Response) => {
-  const booking = await bookingService.createBooking(
-    req.body,
-    req.user
-  );
-  res.status(201).json({ success: true, data: booking });
+  const booking = await bookingService.createBooking(req.body, req.user);
+
+  res.status(201).json({
+    success: true,
+    message: "Booking created successfully",
+    data: booking,
+  });
 };
 
 export const getBookings = async (req: any, res: Response) => {
